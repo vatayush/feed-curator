@@ -1,0 +1,7 @@
+node_modules/
+dist/
+work/
+captures/
+host/run-host.sh
+config.json
+.DS_Store

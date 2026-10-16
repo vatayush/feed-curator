@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "ArtifactData",
+      "Bash(date:*)",
+      "Bash(python3 curate/prepare.py:*)",
+      "Bash(python3 curate/apply.py:*)",
+      "Read(./**)",
+      "Write(./work/**)",
+      "Edit(./work/**)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "ArtifactData",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/curate/guard_artifact.py\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/curate/end_auto_run.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

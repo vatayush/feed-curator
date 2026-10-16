@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "Feed Curator Capture",
+  "version": "0.1.0",
+  "description": "Reads your X and LinkedIn feeds when asked to, and saves the posts for Claude to curate. Read-only.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs/u1SXU+amkAxuW6SrJOniXdYq5ost5owUyME36wRjoHp3io9uaoHu4tCSlffgnp40O3BLgxuh4tUZZsBMSBE6ULROQDKxn/oZdVPr47h6J192/ZXFnJU3fyHMNfsMZkbztKXGdCGKWwkHnb0t0VmeOdT0Z/R6K9Zdefv+rQaMIgiNH9j68yqLs0alu/jkK5BzM9Mm5pNL+6SvEYVg7zAv4fME9u7fDhjzSHjT5V+IZNH1ggBOP2X0gUkX+++TU1K5c3cjDupEjnrVjc24xyB/QAZrVOcvXqrViTrtsR1zNR+WlhUUs6ZTl6MwO2NtJDJJhkG+ynJLIt2k2FT6al+QIDAQAB",
+  "permissions": [
+    "alarms",
+    "downloads",
+    "downloads.ui",
+    "nativeMessaging",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://x.com/home*",
+        "https://www.linkedin.com/feed/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Feed Curator"
+  }
+}
