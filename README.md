@@ -7,6 +7,9 @@ and it learns.
 
 It only reads. It never posts, likes, follows or replies.
 
+**[See how it works →](https://claude.ai/artifact/ThJeMuZdt8AL8Qqa3UUD2V)** A walkthrough with diagrams:
+the whole flow, where each preference is read, how long votes count, and the Claude skills and hooks involved.
+
 > **Know the risk.** Automated reading of X, even in your own logged-in browser, may break X's
 > terms of service, and X could limit or suspend your account. Feed Curator reads slowly, at most
 > twice a day, and stops for 48 hours at any login, captcha or rate-limit page, but the risk is
@@ -35,6 +38,8 @@ Then press **Run X now** in the extension's popup to try it.
 Update by running the same command again. Uninstall with `bash ~/feed-curator/install.sh --uninstall`.
 
 ## How it works
+
+The [walkthrough](https://claude.ai/artifact/ThJeMuZdt8AL8Qqa3UUD2V) covers this in detail.
 
 ```
 07:45  Chrome extension reads X → captures/x-latest.json   (helper saves it)

@@ -1,0 +1,417 @@
+<title>Inside Feed Curator</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Literata:opsz,wght@7..72,400;7..72,600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column with wide breakout rows for diagrams and tables; a score ruler is the signature element. */
+:root {
+  --paper: #f5f7f8;
+  --sheet: #ffffff;
+  --ink: #14202b;
+  --muted: #56626e;
+  --rule: #d9e0e5;
+  --accent: #17607d;
+  --accent-soft: #e2eff4;
+  --signal: #b9770e;
+  --signal-soft: #fbf0dc;
+  --low: #a8b3bc;
+  --display: "Familjen Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --body: "Literata", Georgia, "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f161c; --sheet: #151f27; --ink: #e3e9ee; --muted: #9aa7b2; --rule: #2a3843;
+    --accent: #6fb7d3; --accent-soft: #1a3340; --signal: #e3a646; --signal-soft: #3a2c14; --low: #4b5a66;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f161c; --sheet: #151f27; --ink: #e3e9ee; --muted: #9aa7b2; --rule: #2a3843;
+  --accent: #6fb7d3; --accent-soft: #1a3340; --signal: #e3a646; --signal-soft: #3a2c14; --low: #4b5a66;
+  color-scheme: dark;
+}
+body {
+  background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.65;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+}
+.page { max-width: 1040px; margin: 0 auto; }
+.col { max-width: 44rem; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.15; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(2.2rem, 6vw, 3.4rem); font-weight: 700; letter-spacing: -0.02em; }
+h2 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.01em; }
+h3 { font-size: 1.15rem; font-weight: 600; }
+p { margin: 0; }
+a { color: var(--accent); }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+code { background: var(--accent-soft); padding: 0.08em 0.35em; border-radius: 4px; overflow-wrap: anywhere; }
+.eyebrow { font-family: var(--display); font-weight: 600; font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+
+header.hero { padding-block: 56px 32px; display: grid; gap: 18px; border-bottom: 1px solid var(--rule); }
+header.hero .lede { font-size: 1.2rem; color: var(--muted); max-width: 40rem; }
+nav.toc { display: flex; flex-wrap: wrap; gap: 8px 18px; font-family: var(--display); font-size: 0.95rem; }
+nav.toc a { text-decoration: none; border-bottom: 1px solid var(--rule); }
+nav.toc a:hover, nav.toc a:focus-visible { border-color: var(--accent); }
+
+section { padding-block: 48px 8px; display: grid; gap: 18px; }
+section + section { border-top: 1px solid var(--rule); margin-top: 40px; }
+.stack { display: grid; gap: 14px; }
+
+/* Three stages strip */
+.stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border: 1px solid var(--rule); border-radius: 10px; background: var(--sheet); overflow: hidden; }
+.stage { padding: 20px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.stage + .stage { border-left: 1px solid var(--rule); }
+.stage .when { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
+.stage p { font-size: 0.95rem; }
+@media (max-width: 720px) {
+  .stages { grid-template-columns: 1fr; }
+  .stage + .stage { border-left: 0; border-top: 1px solid var(--rule); }
+}
+
+.diagram { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; background: transparent; text-align: center; font-family: var(--display); }
+.caption { font-size: 0.9rem; color: var(--muted); }
+
+/* Ordered process list: the curation run really is a sequence */
+ol.steps { list-style: none; counter-reset: s; margin: 0; padding: 0; display: grid; gap: 14px; }
+ol.steps > li { counter-increment: s; display: grid; grid-template-columns: 2.2rem minmax(0, 1fr); gap: 12px; }
+ol.steps > li::before { content: counter(s); font-family: var(--display); font-weight: 700; color: var(--accent); font-size: 1.1rem; line-height: 1.6; }
+ol.steps h3 { margin-bottom: 2px; }
+
+/* Score ruler */
+.ruler { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 20px 20px 14px; display: grid; gap: 10px; }
+.bar { position: relative; display: grid; grid-template-columns: 30fr 30fr 20fr 15fr 5fr; height: 34px; border-radius: 6px; overflow: hidden; font-family: var(--display); font-size: 0.78rem; }
+.bar span { display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 4px; min-width: 0; }
+.b0 { background: var(--low); color: var(--ink); }
+.b1 { background: color-mix(in srgb, var(--low) 45%, var(--sheet)); color: var(--ink); }
+.b2 { background: var(--accent-soft); color: var(--ink); }
+.b3 { background: color-mix(in srgb, var(--accent) 55%, var(--sheet)); color: var(--ink); }
+.b4 { background: var(--accent); color: var(--sheet); }
+.cut { position: absolute; top: -6px; bottom: -6px; left: 60%; width: 0; border-left: 3px solid var(--signal); }
+.ticks { position: relative; height: 1.2rem; font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+.ticks span { position: absolute; transform: translateX(-50%); }
+.ticks span:first-child { transform: none; }
+.ticks span:last-child { transform: translateX(-100%); }
+.ticks .t-cut { color: var(--signal); font-weight: 600; }
+.legend { font-size: 0.9rem; color: var(--muted); }
+.legend b { color: var(--signal); font-family: var(--display); }
+
+/* Tables */
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; min-width: 760px; font-size: 0.92rem; line-height: 1.5; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--rule); }
+th { font-family: var(--display); font-weight: 600; font-size: 0.8rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); background: var(--paper); }
+tr:last-child td { border-bottom: 0; }
+td:first-child { font-family: var(--display); font-weight: 600; }
+.chip { display: inline-block; font-family: var(--display); font-size: 0.74rem; font-weight: 600; letter-spacing: 0.04em; padding: 1px 8px; border-radius: 999px; white-space: nowrap; }
+.chip.rule { background: var(--signal-soft); color: var(--signal); }
+.chip.judge { background: var(--accent-soft); color: var(--accent); }
+.chip.page { background: var(--paper); color: var(--muted); border: 1px solid var(--rule); }
+
+/* Two-up cards for Claude pieces */
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+.piece { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 16px 18px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.piece .kind { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+.piece p { font-size: 0.95rem; }
+
+.note { background: var(--signal-soft); border-left: 3px solid var(--signal); padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 0.95rem; }
+ul.plain { margin: 0; padding-left: 1.2rem; display: grid; gap: 6px; }
+pre.code { margin: 0; background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font-family: var(--mono); font-size: 0.84rem; line-height: 1.6; }
+footer { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--rule); color: var(--muted); font-size: 0.9rem; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="page">
+  <header class="hero">
+    <span class="eyebrow">Feed Curator · how it works</span>
+    <h1>Inside Feed Curator</h1>
+    <p class="lede">Twice a day a Chrome extension reads your X feed in your own browser. Claude Code scores every post against what you've told it you want, and you read the few that matter on a private page on claude.ai. This page walks through each part, where your preferences live, and which part of the system reads them.</p>
+    <nav class="toc" aria-label="Contents">
+      <a href="#overview">Overview</a>
+      <a href="#capture">Capture</a>
+      <a href="#trigger">Starting curation</a>
+      <a href="#curate">Curation run</a>
+      <a href="#preferences">Personalizing</a>
+      <a href="#claude">Claude pieces</a>
+      <a href="#safety">Safety</a>
+      <a href="#files">Files</a>
+    </nav>
+  </header>
+
+  <section id="overview">
+    <span class="eyebrow">Overview</span>
+    <h2>Three stages, two places</h2>
+    <div class="stages">
+      <div class="stage">
+        <span class="when">07:45 · 17:45</span>
+        <h3>Capture</h3>
+        <p>The extension opens X in a background tab, scrolls the Following and For you tabs, and hands the posts to a small helper that saves them on your Mac.</p>
+      </div>
+      <div class="stage">
+        <span class="when">about a minute later</span>
+        <h3>Curate</h3>
+        <p>The helper starts Claude Code, which applies your hard rules, scores the rest from 0 to 1, and publishes a digest.</p>
+      </div>
+      <div class="stage">
+        <span class="when">whenever you like</span>
+        <h3>Read</h3>
+        <p>Your Feed Curator page on claude.ai shows the kept posts, the dropped ones with reasons, and your preferences. Votes teach the next run.</p>
+      </div>
+    </div>
+    <div class="diagram" role="img" aria-label="Architecture: Chrome extension and helper on your Mac feed captures to Claude Code, which reads and writes your Feed Curator page on claude.ai">
+<pre class="mermaid">
+flowchart LR
+  subgraph mac["Your Mac"]
+    direction TB
+    ext["Chrome extension<br/>scheduled capture"]
+    host["Capture helper<br/>host/feed_curator_host.py"]
+    caps[("captures/<br/>x-latest.json")]
+    job["launchd job<br/>com.feedcurator.curate"]
+    cc["Claude Code in Terminal<br/>/curate skill"]
+    py["prepare.py · apply.py"]
+    ext -- "native messaging" --> host
+    host --> caps
+    host -- "kickstart" --> job
+    job -- "opens" --> cc
+    cc <--> py
+    py -. reads .-> caps
+  end
+  subgraph web["claude.ai"]
+    direction TB
+    page["Feed Curator page<br/>(private artifact)"]
+    db[("Page database<br/>prefs · people · keywords<br/>votes · settings · digest")]
+    page <--> db
+  end
+  x["x.com"] -. "read in your logged-in tab" .-> ext
+  cc -- "ArtifactData: read prefs,<br/>write digest" --> db
+  you(["You"]) -- "preferences, votes" --> page
+</pre>
+    </div>
+    <p class="caption">Everything to the left runs on your Mac with your own Chrome and your Claude subscription. The only thing that leaves it is the digest, written to your own private page.</p>
+  </section>
+
+  <section id="capture">
+    <span class="eyebrow">Stage 1</span>
+    <h2>Capture: reading X in your browser</h2>
+    <div class="col stack">
+      <p>The extension schedules itself with Chrome alarms, by default at <code>07:45</code> and <code>17:45</code> local time. You can change the times in its popup. At each time it:</p>
+      <ul class="plain">
+        <li>opens <code>x.com/home</code> in an inactive background tab, using the plain feed URL with nothing added that a site could notice</li>
+        <li>reads the <b>Following</b> tab, then <b>For you</b>, each until 60 posts, 90 seconds, or six scrolls in a row with nothing new</li>
+        <li>skips ads and promoted posts, notes which feed each post came from, and saves a post seen in both feeds once</li>
+        <li>closes the tab, and leaves X on whichever tab you had open</li>
+        <li>sends the run to the capture helper over Chrome's native messaging. The helper writes <code>captures/x-&lt;time&gt;.json</code> and <code>x-latest.json</code> and keeps 30 days.</li>
+      </ul>
+      <p>A run more than an hour late (for example, the Mac was asleep) is skipped instead of firing at an odd hour. LinkedIn works the same way, three minutes after X, but is off by default.</p>
+      <div class="note">On X, sort <b>Following</b> by <b>Recent</b>. Sorted by Popular it shows only a handful of posts, and the popup will say so.</div>
+    </div>
+  </section>
+
+  <section id="trigger">
+    <span class="eyebrow">Stage 2a</span>
+    <h2>Starting curation without you</h2>
+    <div class="col stack">
+      <p>When a capture has posts and <code>autoCurate</code> is on in <code>config.json</code>, the helper starts curation. macOS doesn't let Chrome, or anything it runs, open documents in Terminal, so the helper asks launchd to start a small on-demand job instead. The job has no schedule; its only action is to open <code>curate/curate.command</code> in Terminal.</p>
+    </div>
+    <div class="diagram" role="img" aria-label="Sequence of one scheduled run from alarm to published digest">
+<pre class="mermaid">
+sequenceDiagram
+  autonumber
+  participant A as Chrome alarm
+  participant E as Extension
+  participant X as x.com tab
+  participant H as Capture helper
+  participant L as launchd job
+  participant C as Claude Code
+  participant P as Your page
+  A->>E: 07:45
+  E->>X: open background tab, scroll both feeds
+  X-->>E: up to 120 posts
+  E->>H: save run (curate: true)
+  H->>H: write captures/x-latest.json
+  H->>L: launchctl kickstart (once per 5 min)
+  L->>C: open Terminal, run claude "/curate"
+  C->>P: read prefs, people, keywords, votes, settings
+  C->>C: prepare.py → score posts → apply.py
+  C->>P: write digest/current
+  C-->>C: Stop hook ends the session, window closes
+</pre>
+    </div>
+    <div class="col stack">
+      <p>Curation runs as an interactive Claude Code session because the tool that reads and writes the page's database, <code>ArtifactData</code>, is available there. It uses your Claude subscription; there's no API key. The session ends itself once Claude has written its one-line report, or after 15 minutes at the latest if something gets stuck.</p>
+    </div>
+  </section>
+
+  <section id="curate">
+    <span class="eyebrow">Stage 2b</span>
+    <h2>One curation run</h2>
+    <div class="col">
+      <ol class="steps">
+        <li><div><h3>Export the page's data</h3><p>Claude lists each collection on your page (<code>prefs</code>, <code>people</code>, <code>keywords</code>, <code>votes</code>, <code>settings</code>, <code>digest</code>) into a fresh <code>work/run-&lt;time&gt;/db</code> folder.</p></div></li>
+        <li><div><h3>Prepare</h3><p><code>prepare.py</code> merges the latest captures with that data. It applies the hard rules itself, so they behave the same every time, and writes <code>judge.json</code> (what Claude scores) and <code>state.json</code> (everything else). It stops early if the newest capture is more than 3 hours old or was already curated.</p></div></li>
+        <li><div><h3>Judge</h3><p>Claude reads <code>judge.json</code> and writes <code>scores.json</code>: for every post, a score from 0 to 1, a one-line reason, and a topic.</p></div></li>
+        <li><div><h3>Apply</h3><p><code>apply.py</code> checks there's exactly one valid score per post, merges in the rule decisions, and builds <code>digest.json</code>, trimming long texts to fit the page's 256 KB document limit.</p></div></li>
+        <li><div><h3>Publish and report</h3><p>Claude writes the digest to <code>digest/current</code> on your page, pinned to the version it read so it never overwrites a newer one, and reports something like “X captured 7:45 AM: 119 read · 14 kept · 105 dropped”.</p></div></li>
+      </ol>
+    </div>
+    <div class="ruler" role="img" aria-label="Score scale from 0 to 1 with the default cut-off at 0.6">
+      <div class="bar">
+        <span class="b0">noise · bait</span>
+        <span class="b1">thin or off-topic</span>
+        <span class="b2">relevant</span>
+        <span class="b3">matches a preference</span>
+        <span class="b4" title="always show">1.0</span>
+        <i class="cut" aria-hidden="true"></i>
+      </div>
+      <div class="ticks"><span style="left:0">0</span><span style="left:30%">0.3</span><span class="t-cut" style="left:60%">0.6</span><span style="left:80%">0.8</span><span style="left:95%">0.95</span><span style="left:100%">1</span></div>
+      <p class="legend">Posts scoring at or above the <b>cut-off</b> (your Strictness setting, 0.6 by default) are in the digest; the rest are on the Dropped tab with Claude's reason. Always-show people score 1.0 and blocked ones 0.0 without Claude judging them.</p>
+    </div>
+  </section>
+
+  <section id="preferences">
+    <span class="eyebrow">Personalizing</span>
+    <h2>What you can change, and who reads it</h2>
+    <div class="col stack">
+      <p>Most settings live on your Feed Curator page, so you can change them from your phone. A few that shape how Claude judges live in <code>config.json</code> on your Mac, and the capture schedule lives in the extension. This diagram shows where each setting goes on its way to the digest.</p>
+    </div>
+    <div class="diagram" role="img" aria-label="How each setting flows into the digest: hard rules decided by prepare.py, judgement inputs read by Claude, and strictness applied by the page">
+<pre class="mermaid">
+flowchart LR
+  subgraph page["Your page · Preferences tab"]
+    pr["What you want to see<br/>(prefs)"]
+    pe["People: always show / hide"]
+    kw["Blocked words"]
+    st["Strictness slider"]
+  end
+  vo["👍 / 👎 votes<br/>on digest cards"]
+  subgraph cfg["config.json on your Mac"]
+    ab["about"]
+    tp["topics"]
+  end
+  prep["prepare.py"]
+  rules{{"Hard rules<br/>score 1.0 or 0.0"}}
+  judge["judge.json"]
+  claude["Claude scores<br/>0–1 + reason + topic"]
+  dig[("digest/current")]
+  view["Digest vs Dropped<br/>on the page"]
+  pe --> prep
+  kw --> prep
+  pr --> prep
+  vo --> prep
+  ab --> prep
+  tp --> prep
+  prep --> rules --> dig
+  prep --> judge --> claude --> dig
+  dig --> view
+  st -- "applied live,<br/>no re-curation" --> view
+</pre>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Setting</th><th>Where you change it</th><th>Stored in</th><th>Read by</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td>What you want to see</td><td>Page → Preferences. Plain sentences, each switchable on or off.</td><td>page <code>prefs</code></td><td><span class="chip judge">Claude</span> via <code>judge.json</code> → <code>preferences</code></td><td>The main guide. A post that squarely matches an active preference scores 0.80–0.95.</td></tr>
+          <tr><td>People</td><td>Page → Preferences → People. A handle and Always show or Always hide.</td><td>page <code>people</code></td><td><span class="chip rule">prepare.py</span></td><td>Always show scores 1.0, always hide 0.0. Claude never sees these posts.</td></tr>
+          <tr><td>Blocked words</td><td>Page → Preferences → Blocked words</td><td>page <code>keywords</code></td><td><span class="chip rule">prepare.py</span></td><td>Any post whose text or quoted text contains one scores 0.0, with the word as the reason.</td></tr>
+          <tr><td>Votes</td><td>👍 / 👎 on any digest or dropped card</td><td>page <code>votes</code></td><td><span class="chip judge">Claude</span> via <code>recentVotes</code> (last 100) and <code>authorVotes</code></td><td>Posts like ones you 👍 move up and ones like your 👎 move down. Authors with more 👎 than 👍 move down. Takes effect on the next run.</td></tr>
+          <tr><td>Strictness</td><td>Page → Preferences → slider from 0.30 to 0.90</td><td>page <code>settings/main</code></td><td><span class="chip page">the page</span>, and <code>apply.py</code> for the count</td><td>The cut-off between Digest and Dropped. Applies instantly to the current digest, since every post keeps its score.</td></tr>
+          <tr><td>About you</td><td><code>config.json</code> → <code>about</code></td><td>your Mac</td><td><span class="chip judge">Claude</span> via <code>judge.json</code> → <code>about</code></td><td>A free-form note on what you want and how to judge it, such as “first-hand news from labs beats commentary”. Claude follows it as long as it's about scoring.</td></tr>
+          <tr><td>Topics</td><td><code>config.json</code> → <code>topics</code></td><td>your Mac</td><td><span class="chip judge">Claude</span></td><td>The groups the digest is organized by. Claude adds a new one only when several kept posts share a theme none fits.</td></tr>
+          <tr><td>Automatic curation</td><td><code>config.json</code> → <code>autoCurate</code></td><td>your Mac</td><td>capture helper</td><td>When off, captures are saved but you run <code>/curate</code> yourself.</td></tr>
+          <tr><td>Capture times, feeds, LinkedIn</td><td>Extension popup</td><td>Chrome extension storage</td><td>extension</td><td>When it captures, which X tabs it reads, and whether LinkedIn runs too.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="col stack">
+      <h3>How Claude weighs them</h3>
+      <p>Preferences come first, then votes. Posts from the Following feed win ties, because those are people you chose, but a meaningless reply from someone you follow still scores low. Replies that mean little on their own, engagement bait and unrelated topics land under 0.3. Image-only posts are judged by author and context, and rarely above 0.5. The full rubric is in <code>curate/CURATION.md</code>, which you can edit like any other file.</p>
+      <h3>Applying changes right away</h3>
+      <p>Strictness changes take effect immediately. Other changes apply at the next capture. To apply them now, open Claude Code in the Feed Curator folder and ask it to re-curate; it runs <code>prepare.py --force</code> on the same capture.</p>
+      <h3>How long a vote lasts</h3>
+      <p>A vote never expires on a timer. It lasts until newer votes push it out, and it counts in two ways for different lengths of time:</p>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>How the vote is used</th><th>Which votes count</th><th>At about 10 votes a day</th></tr></thead>
+        <tbody>
+          <tr><td>Similar posts move up or down</td><td>Your latest <b>100</b>. Claude sees each vote's first 200 characters, author, feed and topic.</td><td>about 10 days</td></tr>
+          <tr><td>The author's standing</td><td>All stored votes, up to <b>500</b>, tallied as 👍 and 👎 per author</td><td>about 7 weeks</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="col stack">
+      <p>The page stores your 500 most recent votes. Once you have more, it deletes the oldest the next time you open it. If you vote less often, each vote lasts longer.</p>
+      <ul class="plain">
+        <li><b>Undo:</b> tap the same 👍 or 👎 again and the vote is deleted.</li>
+        <li><b>Switch:</b> tap the other button and it replaces the old vote.</li>
+        <li><b>Start over:</b> the <b>Your data</b> section on the Preferences tab downloads everything or resets it.</li>
+      </ul>
+      <p>Like preferences, a vote counts from the next curation run. It doesn't change scores already on the page.</p>
+    </div>
+  </section>
+
+  <section id="claude">
+    <span class="eyebrow">Claude pieces</span>
+    <h2>Skills, tools and hooks</h2>
+    <div class="grid2">
+      <div class="piece"><span class="kind">skill · .claude/skills/curate</span><h3>/curate</h3><p>Runs one curation pass by following <code>curate/CURATION.md</code> step by step. Started automatically after a capture, or by typing <code>/curate</code> yourself.</p></div>
+      <div class="piece"><span class="kind">skill · .claude/skills/setup-page</span><h3>/setup-page</h3><p>Run once by the installer. Publishes <code>artifact/feed-curator.html</code> as your own private page, with a database and file downloads, and saves its link in <code>config.json</code>.</p></div>
+      <div class="piece"><span class="kind">tool · ArtifactData</span><h3>Page database</h3><p>Reads your settings and votes (<code>list</code>, <code>get</code>, <code>query</code>) and writes the digest (<code>set</code> on <code>digest/current</code>, pinned with <code>if_version</code>).</p></div>
+      <div class="piece"><span class="kind">tool · Artifact</span><h3>The page itself</h3><p>A single HTML page on claude.ai that renders the digest and settings live from its database. It works in the Claude app on your phone.</p></div>
+      <div class="piece"><span class="kind">hook · PreToolUse · curate/guard_artifact.py</span><h3>Guard</h3><p>Checks every <code>ArtifactData</code> call. It allows reads of your own page and writes to its digest only, and blocks everything else, including other artifacts.</p></div>
+      <div class="piece"><span class="kind">hook · Stop · curate/end_auto_run.py</span><h3>Clean exit</h3><p>Ends an automatic session once Claude has finished, so its Terminal window closes. Sessions you open yourself are left alone.</p></div>
+      <div class="piece"><span class="kind">permissions · .claude/settings.json</span><h3>Pre-approved steps</h3><p>An unattended run can run <code>date</code>, <code>prepare.py</code> and <code>apply.py</code>, read the project, and write in <code>work/</code>. Anything else stops at a permission prompt.</p></div>
+      <div class="piece"><span class="kind">rubric · curate/CURATION.md</span><h3>Instructions</h3><p>The exact steps, the scoring bands, and how to write reasons and pick topics. Edit it to change how Claude judges.</p></div>
+    </div>
+  </section>
+
+  <section id="safety">
+    <span class="eyebrow">Safety</span>
+    <h2>What keeps it careful</h2>
+    <div class="col stack">
+      <ul class="plain">
+        <li><b>Read-only on X.</b> It never posts, likes, follows or replies. It reads at most twice a day, scrolling slowly, for at most 90 seconds per feed.</li>
+        <li><b>Safety stops.</b> A login, captcha, logged-out, rate-limit or security-check page stops the run at once, leaves the tab open for you to see, and pauses that site for 48 hours. Pressing Run now in the popup clears the pause.</li>
+        <li><b>Posts are data, not instructions.</b> Posts are written by strangers and could try to talk Claude into something. The skill tells Claude to judge them, never follow them, and the guard hook limits what any run can touch to your page's digest.</li>
+        <li><b>Private by default.</b> Captures stay in <code>captures/</code> on your Mac for 30 days. The digest lives on your private claude.ai page. Nothing is sent anywhere else.</li>
+      </ul>
+      <div class="note">Automated reading of X, even in your own logged-in browser, may break X's terms of service, and X could limit your account. The slow pace and safety stops reduce that risk but don't remove it.</div>
+    </div>
+  </section>
+
+  <section id="files">
+    <span class="eyebrow">Files</span>
+    <h2>Where everything lives</h2>
+<pre class="code">feed-curator/
+├── install.sh                  one-line installer (also --uninstall)
+├── config.json                 your topics, about note, autoCurate, page link (not in git)
+├── src/                        the Chrome extension (TypeScript) → built into dist/
+│   └── adapters/x.ts           X's selectors: the place to look if a capture finds no posts
+├── host/
+│   ├── feed_curator_host.py    capture helper: saves runs, starts curation
+│   └── install.sh              registers the helper with Chrome and the launchd job
+├── curate/
+│   ├── CURATION.md             the steps and scoring rubric Claude follows
+│   ├── prepare.py · apply.py   before and after Claude's scoring
+│   ├── curate.command          what the launchd job opens in Terminal
+│   ├── guard_artifact.py       PreToolUse hook: limits page access
+│   └── end_auto_run.py         Stop hook: ends automatic runs
+├── .claude/
+│   ├── settings.json           pre-approved steps and the two hooks
+│   └── skills/                 /curate and /setup-page
+├── artifact/feed-curator.html  your page's source
+├── captures/                   saved captures (30 days)
+└── work/                       one folder per curation run (7 days)</pre>
+    <div class="col stack">
+      <h3>Install</h3>
+<pre class="code">curl -fsSL https://raw.githubusercontent.com/vatayush/feed-curator/main/install.sh | bash</pre>
+      <p>It needs macOS, Google Chrome and Claude Code. The installer downloads Feed Curator, registers the helper and the launchd job, asks about automatic curation, and opens Claude Code once to create your page. The one step Chrome doesn't allow from a script is loading the extension: on <code>chrome://extensions</code>, turn on Developer mode and choose Load unpacked.</p>
+    </div>
+  </section>
+
+  <footer>Feed Curator is open source under the MIT license: <a href="https://github.com/vatayush/feed-curator">github.com/vatayush/feed-curator</a>.</footer>
+</div>
