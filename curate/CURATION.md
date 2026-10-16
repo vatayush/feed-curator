@@ -5,8 +5,8 @@ Captures: `captures/x-latest.json`, `linkedin-latest.json` (written by the exten
 
 Work in a fresh folder, `work/run-<YYYYMMDD-HHMM>` in the project folder (get the time with `date`), called `W` below.
 Scheduled runs only have permission for exactly the commands written here, so run each one by itself from
-the project folder, with relative paths as shown: no `cd`, `&&`, pipes or other scripts. Write files with the
-Write tool. `prepare.py` deletes work folders older than 7 days itself.
+the project folder, with relative paths as shown: no `cd`, `&&`, `;`, pipes or other scripts. Read files with the
+Read tool (not `cat` or `python3 -c`) and write them with the Write tool. `prepare.py` deletes work folders older than 7 days itself.
 
 ## 1. Export the page's data
 
@@ -35,7 +35,7 @@ Stop there.
 
 ## 3. Judge
 
-Read `W/judge.json`: active `preferences`, the reader's `about` note (may be empty), `recentVotes`,
+Read `W/judge.json` with the Read tool (one vote or post per line, so it fits in one read): active `preferences`, the reader's `about` note (may be empty), `recentVotes`,
 `authorVotes`, the allowed `topics`, and the `posts` to score.
 With the Write tool, write `W/scores.json` as `{"<post id>": {"score": 0-1, "reason": "...", "topic": "..."}}` with
 an entry for **every** post in `judge.json`, and none for any other id.

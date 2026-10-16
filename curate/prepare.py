@@ -63,6 +63,20 @@ def prune_work_folders(work, keep_days=7):
             shutil.rmtree(path)
 
 
+def write_judge(path, judge):
+    """One vote or post per line, so the Read tool shows the whole file (it stops at 2000 lines)."""
+    line = lambda v: json.dumps(v, ensure_ascii=False)
+    parts = []
+    for k, v in judge.items():
+        if isinstance(v, list):
+            items = ",\n".join("  " + line(x) for x in v)
+            parts.append(f"{line(k)}: [\n{items}\n]" if v else f"{line(k)}: []")
+        else:
+            parts.append(f"{line(k)}: {line(v)}")
+    with open(path, "w") as f:
+        f.write("{\n" + ",\n".join(parts) + "\n}\n")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--db", required=True)
@@ -146,7 +160,7 @@ def main():
         "authorVotes": {h: {"up": u, "down": d} for h, (u, d) in liked.items()},
         "posts": to_judge,
     }
-    json.dump(judge, open(os.path.join(a.work, "judge.json"), "w"), ensure_ascii=False, indent=1)
+    write_judge(os.path.join(a.work, "judge.json"), judge)
     json.dump({"generatedAt": now.isoformat().replace("+00:00", "Z"), "sources": sources,
                "threshold": settings.get("threshold", 0.6), "decided": decided, "posts": posts},
               open(os.path.join(a.work, "state.json"), "w"), ensure_ascii=False)

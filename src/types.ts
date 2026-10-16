@@ -82,6 +82,8 @@ export interface Adapter {
   /** Elements that each hold one post, outermost only. */
   postElements(root: ParentNode): Element[];
   parse(el: Element, now: Date): ParseResult;
+  /** The element the feed scrolls in, when it isn't the page itself. */
+  scrollContainer?(doc: Document): Element | null;
   /** A reason if the page is a login, captcha or logged-out page; else null. Checked throughout. */
   detectChallenge(doc: Document, url: URL): string | null;
   /**
